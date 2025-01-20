@@ -6,28 +6,43 @@ const outputDir = path.join(__dirname, 'project-dist');
 const bundlePath = path.join(outputDir, 'bundle.css');
 
 function buildCSSBundle() {
-  // считаем содержимое папки styles
+  // читаем содержимое папки styles
   fs.readdir(stylesDir, { withFileTypes: true }, (err, files) => {
     if (err) {
       return console.error('Ошибка при чтении папки:', err);
     }
 
-    const styles = [];
+    let styles = '';
 
-    files.forEach((file) => {
-      // проверка что это файл и его расширение css
+    function processFile(index) {
+      if (index >= files.length) {
+        // записываем итоговый файл, когда все файлы обработаны
+        return fs.writeFile(bundlePath, styles, 'utf-8', (err) => {
+          if (err) {
+            return console.error('Ошибка при записи файла:', err);
+          }
+          console.log('Итоговый файл стилей bundle.css успешно создан!');
+        });
+      }
+
+      const file = files[index];
       if (file.isFile() && path.extname(file.name) === '.css') {
         const filePath = path.join(stylesDir, file.name);
-        const content = fs.readFileSync(filePath, 'utf-8');
 
-        styles.push(content);
+        // читаем файл асинхронно
+        fs.readFile(filePath, 'utf-8', (err, content) => {
+          if (err) {
+            return console.error('Ошибка при чтении файла:', err);
+          }
+          styles += content + '\n';
+          processFile(index + 1); // обрабатываем следующий файл
+        });
+      } else {
+        processFile(index + 1); // пропускаем не подходящие файлы
       }
-    });
+    }
 
-    // записываем объединённые стили в финальный файл, когда они уже оь
-    fs.writeFileSync(bundlePath, styles.join('\n'), 'utf-8');
-
-    console.log('Итоговый файл стилей bundle.css успешно создан!');
+    processFile(0); // запускаем обработку с первого файла
   });
 }
 
